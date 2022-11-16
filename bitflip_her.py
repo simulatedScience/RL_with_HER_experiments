@@ -13,21 +13,36 @@ def gen_bitflip_start(n: int=20) -> np.ndarray:
 
 def train_model(
   neural_net: keras.Model,
+  problem_size: int,
   max_episodes: int,
   learning_rate: float,
   exploration_rate: float):
   """
-  train model with given parameters for a given number of episodes
+  train a given neural network using Q-learning with given the parameters.
 
   Args:
-      neural_net (keras.Model): _description_
-      max_episodes (int): _description_
-      learning_rate (float): _description_
-      exploration_rate (float): _description_
+      neural_net (keras.Model): a neural network to be trained
+      problem_size (int): the size of the bitflip problem
+      max_episodes (int): number of episodes to train for
+      learning_rate (float): learning rate for Q-learning
+      exploration_rate (float): exploration rate for epsilon-greedy policy
   """
-  play_episode()
+  optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+  for episode in range(max_episodes):
+    # play a single episode
+    play_episode()
+    # update the network
+
 
 def play_episode(max_episode_length: int):
   """
-  play a single episode
+  Play a single episode of the bitflip game. The episode ends when the goal is reached or the maximum episode length is reached.
   """
+  for i in range(max_episode_length):
+    # choose an action
+    
+    # take the action
+    # observe the reward
+    # observe the next state
+    # update the network
+
