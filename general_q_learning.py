@@ -4,14 +4,34 @@ this module implements a framework to solve several problems using Q-learning.
 import numpy as np
 import tensorflow.keras as keras
 
+from replay_buffer import Replay_buffer
 from q_problem_interface import Q_learning_problem
 
 class Q_learning_framework:
-  def __init__(self, problem: Q_learning_problem, max_episodes: int, learning_rate: float, exploration_rate: float):
+  def __init__(self,
+      problem: Q_learning_problem,
+      max_episodes: int,
+      learning_rate: float,
+      exploration_rate: float,
+      buffer_size: int = 1000):
+    """
+    initialize the Q-learning framework.
+
+    Args:
+        problem (Q_learning_problem): the problem to solve
+        max_episodes (int): the maximum number of episodes to play
+        learning_rate (float): the learning rate for the neural network
+        exploration_rate (float): the probability of choosing a random action
+    """
     self.problem: Q_learning_problem = problem
     self.max_episodes: int = max_episodes
     self.learning_rate: float = learning_rate
     self.exploration_rate: float = exploration_rate
+    # create the replay buffer
+    # buffer should never be smaller than episode length
+    self.buffer_size: int = max(buffer_size, max_episodes)
+    self.replay_buffer: Replay_buffer = Replay_buffer(size=self.buffer_size)
+
 
   def train_model(self, neural_net: keras.Model):
     """
@@ -25,6 +45,7 @@ class Q_learning_framework:
       self.play_episode(neural_net)
       # update the network
 
+
   def play_episode(self, neural_net: keras.Model, max_episode_length: int):
     """
     Play a single episode of the bitflip game. The episode ends when the goal is reached or the maximum episode length is reached.
@@ -34,9 +55,10 @@ class Q_learning_framework:
       # choose an action
       action = self.choose_action(state, neural_net)
       # take the action and observe the reward
-      new_state, reward = self.problem.take_action(state, action)
-      # update the network
-      raise NotImplementedError
+      reward, new_state = self.problem.take_action(state, action)
+      # add the transition to the replay buffer
+      self.replay_buffer.add_transition(state, action, reward, new_state)
+
 
   def choose_action(self,
         state: np.ndarray,
@@ -55,5 +77,3 @@ class Q_learning_framework:
       return np.random.randint(0, self.problem_size)
     else:
       return np.argmax(neural_net(state))
-
-  

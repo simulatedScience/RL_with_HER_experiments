@@ -85,6 +85,21 @@ class Q_learning_problem:
     """
     raise NotImplementedError
 
+  def take_action(self,
+        state: np.ndarray,
+        action: int) -> Tuple(float, np.ndarray):
+    """
+    take an action in the environment and observe the reward and the next state.
+
+    Args:
+        state (np.ndarray): the current state of the environment
+        action (int): the action to take
+
+    Returns:
+        tuple: the reward for the taken action and the next state
+    """
+    raise NotImplementedError
+
   def get_possible_next_states(self, 
         state: np.ndarray) -> np.ndarray:
     """
@@ -108,20 +123,5 @@ class Q_learning_problem:
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: the possible next states and the rewards for taking any action in the state
-    """
-    raise NotImplementedError
-
-  def take_action(self,
-        state: np.ndarray,
-        action: int) -> Tuple(float, np.ndarray):
-    """
-    take an action in the environment and observe the reward and the next state.
-
-    Args:
-        state (np.ndarray): the current state of the environment
-        action (int): the action to take
-
-    Returns:
-        tuple: the reward for the taken action and the next state
     """
     raise NotImplementedError
