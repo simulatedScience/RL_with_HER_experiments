@@ -87,7 +87,7 @@ class Q_learning_problem:
 
   def take_action(self,
         state: np.ndarray,
-        action: int) -> Tuple(float, np.ndarray):
+        action: int) -> Tuple[float, np.ndarray]:
     """
     take an action in the environment and observe the reward and the next state.
 

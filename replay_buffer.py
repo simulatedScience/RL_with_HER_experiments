@@ -1,7 +1,7 @@
 import random
 
 
-class Replay_Buffer():
+class Replay_Buffer:
   def __init__(self, size: int = 1000):
     """initialize an empty replay buffer with the given size
 
@@ -13,7 +13,7 @@ class Replay_Buffer():
     self._next_item_index: int = 0
 
 
-  def add_items_to_buffer(self, items: list):
+  def add_items(self, items: list):
     """add a number of items to the replay buffer
 
     Args:
@@ -37,42 +37,45 @@ class Replay_Buffer():
       self._next_item_index = n_new_items - n_items_in_first_batch
 
 
-  def add_item_to_buffer(self, item):
-    """add a single item to the replay buffer
+  def add_item(self, item):
+    """
+    add a single item to the replay buffer
 
     Args:
-        item ([type]): [description]
+        item (any): item to add to the buffer
     """
     self.buffer_list[self._next_item_index] = item
     self._next_item_index = (self._next_item_index + 1) % self.buffer_size
 
 
-  def single_sample(self):
-    """return a single element from the replay buffer
+  def sample_single(self) -> object:
+    """
+    return a single element from the replay buffer
 
     Returns:
-        [type]: [description]
+        object: random element from the buffer
     """
     return random.choice(self.buffer_list)
 
 
-  def sample_batch(self, batch_size: int = 100):
-    """return `batch_size` random elements from the rpelay buffer.
+  def sample_batch(self, batch_size: int = 100) -> list:
+    """
+    return `batch_size` random elements from the rpelay buffer.
 
     Args:
-        batch_size (int, optional): [description]. Defaults to 100.
+        batch_size (int, optional): number of elements to return. Defaults to 100.
 
     Returns:
-        [type]: [description]
+        list: list of random elements from the buffer
     """
     return random.choices(self.buffer_list, k=batch_size)
 
 
-  def __str__(self):
+  def __str__(self) -> str:
     return str(self.buffer_list)
 
 
-  def __len__(self):
+  def __len__(self) -> int:
     return len(self.buffer_list)
 
 
@@ -87,5 +90,5 @@ if __name__ == "__main__":
   for n in test_list:
     L = list(range(prev_n, prev_n + n))
     prev_n += n
-    B.add_items_to_buffer(L)
+    B.add_items(L)
     print(B, len(B))

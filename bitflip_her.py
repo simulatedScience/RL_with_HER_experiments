@@ -40,9 +40,9 @@ def play_episode(max_episode_length: int):
   """
   for i in range(max_episode_length):
     # choose an action
-    
+
     # take the action
     # observe the reward
     # observe the next state
     # update the network
-
+    pass

@@ -9,7 +9,7 @@ from q_problem_interface import Q_learning_problem
 class Bitflip_problem(Q_learning_problem):
   def __init__(self, problem_size: int):
     self.problem_size: int = problem_size
-    self.goal: np.ndarray = self.gen_goal_state()
+    self.goal: np.ndarray = np.ones(problem_size, dtype=np.int8)
 
   def gen_start_state(self) -> np.ndarray:
     """
@@ -18,16 +18,18 @@ class Bitflip_problem(Q_learning_problem):
     Returns:
         np.ndarray: the start state
     """
-    return np.random.randint(0, 2, self.problem_siz, dtype=np.int8)
+    return np.random.randint(0, 2, self.problem_size, dtype=np.int8)
 
   def gen_goal_state(self) -> np.ndarray:
     """
     generate a random 0-1-array as a goal state for the bitflip problem.
+    This goal is saved in the `goal` attribute.
 
     Returns:
         np.ndarray: the goal state
     """
-    return np.random.randint(0, 2, self.problem_size, dtype=np.int8)
+    self.goal = np.random.randint(0, 2, self.problem_size, dtype=np.int8)
+    return self.goal
 
   def get_reward(self,
         state: np.ndarray,
@@ -64,7 +66,7 @@ class Bitflip_problem(Q_learning_problem):
 
   def is_goal(self, state: np.ndarray) -> bool:
     """
-    check if the given state is the goal state.
+    check if the given state is the goal state stored in the `goal` attribute.
 
     Args:
         state (np.ndarray): the state to check
@@ -86,7 +88,7 @@ class Bitflip_problem(Q_learning_problem):
     """
     return np.arange(self.problem_size)
 
-  def take_action(self, state: np.ndarray, action: int) -> Tuple(float, np.ndarray):
+  def take_action(self, state: np.ndarray, action: int) -> Tuple[float, np.ndarray]:
     """
     take an action in a given state and return the reward and the next state.
 
@@ -100,3 +102,14 @@ class Bitflip_problem(Q_learning_problem):
     reward = self.get_reward(state, action)
     next_state = self.get_next_state(state, action)
     return reward, next_state
+
+if __name__ == "__main__":
+  # test the bitflip problem
+  problem = Bitflip_problem(6)
+  print(problem.gen_start_state())
+  print(problem.gen_goal_state())
+  print(problem.get_reward(np.array([0, 1, 0, 1]), 1))
+  print(problem.get_next_state(np.array([0, 1, 0, 1]), 1))
+  print(problem.is_goal(np.array([0, 1, 0, 1])))
+  print(problem.get_actions(np.array([0, 1, 0, 1])))
+  print(problem.take_action(np.array([0, 1, 0, 1]), 1))
