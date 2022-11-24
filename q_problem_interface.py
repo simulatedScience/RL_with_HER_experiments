@@ -11,6 +11,24 @@ class Q_learning_problem:
     self.goal: np.ndarray = None
     raise NotImplementedError
 
+  def get_num_actions(self) -> int:
+    """
+    get the number of possible actions in the environment.
+
+    Returns:
+        int: the number of possible actions
+    """
+    raise NotImplementedError
+
+  def get_state_size(self) -> Tuple[int]:
+    """
+    get the size and shape of each state in the state space.
+
+    Returns:
+        int: the size of the state space
+    """
+    raise NotImplementedError
+
   def gen_start_state(self) -> np.ndarray:
     """
     generate a random start state for the problem.
@@ -22,12 +40,21 @@ class Q_learning_problem:
   
   def gen_goal_state(self) -> np.ndarray:
     """
-    generate a random goal state for the problem.
+    generate a random goal state for the problem and save it as self.goal.
 
     Returns:
         np.ndarray: the goal state
     """
     raise NotImplementedError
+  
+  def get_goal(self) -> np.ndarray:
+    """
+    get the goal state of the problem.
+
+    Returns:
+        np.ndarray: the goal state
+    """
+    return self.goal
 
   def get_reward(self,
         state: np.ndarray,

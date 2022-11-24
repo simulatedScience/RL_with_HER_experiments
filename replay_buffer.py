@@ -1,7 +1,7 @@
 import random
 
 
-class Replay_Buffer:
+class Replay_buffer:
   def __init__(self, size: int = 1000):
     """initialize an empty replay buffer with the given size
 
@@ -10,6 +10,7 @@ class Replay_Buffer:
     """
     self.buffer_size: int = size
     self.buffer_list: list = [None] * self.buffer_size
+    self._buffer_filled: bool = False
     self._next_item_index: int = 0
 
 
@@ -26,15 +27,19 @@ class Replay_Buffer:
     if n_new_items > self.buffer_size:
       raise ValueError(
           f"Too many items pushed into buffer. Tried adding {n_new_items} items to buffer of size {self.buffer_size}.")
+    # if buffer is not full, add items to the end of the buffer
     # if self.number_of_items < self.buffer_size - n_new_items:
     if self._next_item_index + n_new_items < self.buffer_size:
       self.buffer_list[self._next_item_index:self._next_item_index + n_new_items] = items
-      self._next_item_index += n_new_items
-    else:
+      self._next_item_index = (self._next_item_index + n_new_items) % self.buffer_size
+      if self._next_item_index == self.buffer_size:
+        self._buffer_filled = True
+    else: # if buffer is full, add items to the end of the buffer and overwrite the beginning
       n_items_in_first_batch = self.buffer_size - self._next_item_index
       self.buffer_list[self._next_item_index:self.buffer_size] = items[:n_items_in_first_batch]
       self.buffer_list[:n_new_items - n_items_in_first_batch] = items[n_items_in_first_batch:]
       self._next_item_index = n_new_items - n_items_in_first_batch
+      self._buffer_filled = True
 
 
   def add_item(self, item):
@@ -46,6 +51,8 @@ class Replay_Buffer:
     """
     self.buffer_list[self._next_item_index] = item
     self._next_item_index = (self._next_item_index + 1) % self.buffer_size
+    if self._next_item_index == 0:
+      self._buffer_filled = True
 
 
   def sample_single(self) -> object:
@@ -61,6 +68,8 @@ class Replay_Buffer:
   def sample_batch(self, batch_size: int = 100) -> list:
     """
     return `batch_size` random elements from the rpelay buffer.
+    if `batch_size` is larger than the buffer size, the buffer will be returned in random order.
+    If buffer is not full, all elements will be returned in random order.
 
     Args:
         batch_size (int, optional): number of elements to return. Defaults to 100.
@@ -68,7 +77,12 @@ class Replay_Buffer:
     Returns:
         list: list of random elements from the buffer
     """
-    return random.choices(self.buffer_list, k=batch_size)
+    # sample without chooing None values
+    if self._buffer_filled:
+      return random.sample(self.buffer_list, max(batch_size, self.buffer_size))
+    if self._next_item_index < batch_size:
+      return random.sample(self.buffer_list[:self._next_item_index], self._next_item_index)
+    return random.sample(self.buffer_list[:self._next_item_index], batch_size)
 
 
   def __str__(self) -> str:

@@ -31,6 +31,24 @@ class Bitflip_problem(Q_learning_problem):
     self.goal = np.random.randint(0, 2, self.problem_size, dtype=np.int8)
     return self.goal
 
+  def get_num_actions(self) -> int:
+    """
+    get the number of possible actions in the environment.
+
+    Returns:
+        int: the number of possible actions
+    """
+    return self.problem_size
+  
+  def get_state_size(self) -> Tuple[int]:
+    """
+    get the size and shape of each state in the state space.
+
+    Returns:
+        int: the size of the state space
+    """
+    return (self.problem_size,)
+
   def get_reward(self,
         state: np.ndarray,
         action: int) -> float:

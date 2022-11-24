@@ -1,8 +1,8 @@
 """
-this module implements a framework to solve several problems using Q-learning.
+this module implements a framework to solve several problems using Q-learning using temporal difference learning, a neural network and a replay buffer.
 """
 import time
-from typing import Tuple
+from typing import Tuple, List
 
 import numpy as np
 import tensorflow.keras as keras
@@ -18,7 +18,8 @@ class Q_learning_framework:
       exploration_rate: float = 0.1,
       discount_factor: float = 0.9,
       batch_size: int = 32,
-      replay_buffer_size: int = 1024):
+      replay_buffer_size: int = 1024,
+      verbosity: int = 0):
     """
     initialize the Q-learning framework.
 
@@ -30,6 +31,7 @@ class Q_learning_framework:
         discount_factor (float): the discount factor for the temporal difference update rule
         batch_size (int): the number of transitions to sample from the replay buffer
         replay_buffer_size (int): the maximum number of transitions to store in the replay buffer
+        verbosity (int): the verbosity level for learning. 0 is silent, 1 prints some information about episode success and 2 also prints information about the neural network training.
     """
     self.problem: Q_learning_problem = problem
     self.max_episode_length: int = max_episode_length
@@ -37,6 +39,7 @@ class Q_learning_framework:
     self.exploration_rate: float = exploration_rate
     self.discount_factor: float = discount_factor
     self.batch_size: int = batch_size
+    self.verbosity: int = verbosity
     # create the replay buffer
     # buffer should never be smaller than episode length
     if replay_buffer_size < max_episode_length:
@@ -50,64 +53,97 @@ class Q_learning_framework:
         neural_net: keras.Model,
         max_episode_length: int,
         max_episodes: int = 1000,
-        max_time_s: int = 300):
+        max_time_s: int = 300) -> List[bool]:
     """
     train a given neural network using Q-learning with given the parameters.
+    For each episode, record whether the goal was reached or not.
 
     Args:
         neural_net (keras.Model): a neural network to be trained. This should be a map from state to Q-values for each action (S -> A).
         max_episode_length (int): the maximum number of steps to take in an episode
         max_episodes (int, optional): the maximum number of episodes to play
         max_time_s (int, optional): the maximum number of seconds to train for
+
+    Returns:
+        list: a list of booleans indicating whether the goal was reached in each episode
     """
+    # initialize the list of goals reached
+    goals_reached = []
     episode_index = 0
+    status_print_count = 10
+    print_counter = 1
+    last_print_end_index = 0
     start_time = time.perf_counter()
     while episode_index < max_episodes and time.perf_counter() - start_time < max_time_s:
       # play a single episode
-      self.play_episode(neural_net, max_episode_length, episode_index)
+      success = self.play_episode(neural_net, max_episode_length, episode_index)
+      goals_reached.append(success)
+      # print success rate every 10% of time
+      if time.perf_counter() - start_time >print_counter * (max_time_s / status_print_count):
+        print(f"Success rate after {episode_index} episodes: {np.mean(goals_reached[last_print_end_index:episode_index]):.2f}")
+        last_print_end_index = episode_index
+        print_counter += 1
       episode_index += 1
     print(f"Finished training after {episode_index} episodes and {time.perf_counter() - start_time} seconds.")
+    return goals_reached
+
 
   def play_episode(self,
         neural_net: keras.Model,
         max_episode_length: int,
-        episode_index: int):
+        episode_index: int) -> bool:
     """
     Play a single episode of the bitflip game. The episode ends when the goal is reached or the maximum episode length is reached.
+
+    Args:
+        neural_net (keras.Model): the neural network used to estimate the Q-values
+        max_episode_length (int): the maximum number of steps to take in an episode
+        episode_index (int): the index of the episode
+
+    Returns:
+        bool: True if the goal was reached, False otherwise
     """
     state = self.problem.gen_start_state()
     for i in range(max_episode_length):
-      # choose an action
-      action = self.choose_action(state, neural_net)
-      # take the action and observe the reward
+      action = self.choose_action(state, neural_net, self.exploration_rate)
+      # take the action and observe the reward and new state
       reward, new_state = self.problem.take_action(state, action)
       # add the transition to the replay buffer
       self.replay_buffer.add_item(self.__get_buffer_transition(state, action, reward, new_state))
-      if self.problem.is_goal_state(new_state):
+      if self.problem.is_goal(new_state):
+        goal_reached = True
+        if self.verbosity > 0:
+          print(f"Episode {episode_index} finished successfully after {i+1} steps.")
         break
+      state = new_state
     else: # episode ended without reaching the goal
-      print(f"Episode {episode_index} ended without reaching the goal.")
+      goal_reached = False
+      if self.verbosity > 0:
+        print(f"Episode {episode_index} ended without reaching the goal.")
     # update the network
     self.update_network(neural_net)
+    return goal_reached
 
 
   def choose_action(self,
         state: np.ndarray,
-        neural_net: keras.Model) -> int:
+        neural_net: keras.Model,
+        exploration_rate: float) -> int:
     """
     choose an action using the epsilon-greedy policy. With probability `self.exploration_rate`, choose a random action. Otherwise, choose the action with the highest Q-value.
 
     Args:
         state (np.ndarray): the current state of the environment
-        neural_net (keras.Model): the neural network used to estimate the Q-values
+        neural_net (keras.Model): tpredhe neural network used to estimate the Q-values
 
     Returns:
         int: the chosen action
     """
-    if np.random.random() < self.exploration_rate:
-      return np.random.randint(0, self.problem_size)
+    if np.random.random() < exploration_rate:
+      return np.random.randint(0, self.problem.get_num_actions())
     else:
-      return np.argmax(neural_net(state))
+      predictions = neural_net.predict(state.reshape(1, -1), verbose=self.verbosity)
+      return np.argmax(predictions)
 
   def __get_buffer_transition(self,
         state: np.ndarray,
@@ -136,10 +172,10 @@ class Q_learning_framework:
     Returns:
         tuple: a tuple of (states, actions, rewards, new_states)
     """
-    states = np.zeros((len(batch_samples), self.problem.state_size))
+    states = np.zeros((len(batch_samples), *self.problem.get_state_size()))
     actions = np.zeros((len(batch_samples), 1))
     rewards = np.zeros((len(batch_samples), 1))
-    new_states = np.zeros((len(batch_samples), self.problem.state_size))
+    new_states = np.zeros((len(batch_samples), *self.problem.get_state_size()))
     for i, sample in enumerate(batch_samples):
       states[i] = sample[0]
       actions[i] = sample[1]
@@ -163,7 +199,8 @@ class Q_learning_framework:
     # calculate the target Q-values
     target_q_values = self.__get_target_q_values(neural_net, states, actions, rewards, new_states)
     # update the neural network
-    neural_net.fit(states, target_q_values, epochs=1, verbose=0)
+    neural_net.fit(states, target_q_values, epochs=1, verbose=self.verbosity)
+
 
   def __get_target_q_values(self, 
         neural_net: keras.Model,
@@ -182,14 +219,58 @@ class Q_learning_framework:
         new_states (np.ndarray): new states after taking the actions
 
     Returns:
-        np.ndarray: the target Q-values
+        np.ndarray: the target Q-values. This is a 2D array with shape (batch_size, num_actions) where all the Q-values are the same except for the Q-value for the action taken in each transition.
     """
-    # get the Q-values for the visited states
-    current_q_values = neural_net(states)
-    # get the Q-values for the follow-up states
-    next_q_values = neural_net(new_states)
+    batch_size = states.shape[0]
+    # get the Q-values for the new states
+    next_q_values = neural_net.predict(new_states, verbose=self.verbosity)
+    # get the Q-values for the states
+    current_q_values = neural_net.predict(states, verbose=self.verbosity)
+    # get the Q-values for the actions taken
+    int_actions = actions.astype(np.int16)
+    # q_values_for_actions = current_q_values[np.arange(batch_size), int_actions.reshape(-1)]
+    # get the maximum Q-value for each follow-up state in the same shape as the current Q-values
     max_next_q_values = np.max(next_q_values, axis=1)
-    # calculate the updated target Q-values
-    target_q_values = current_q_values + self.learning_rate \
-        * (rewards + self.discount_factor * max_next_q_values - current_q_values)
-    return target_q_values
+    # calculate the target Q-values
+    # target_q_values = q_values_for_actions + self.learning_rate \
+    #     * (rewards + self.discount_factor * max_next_q_values - q_values_for_actions)
+    target_q_values = rewards + self.discount_factor * max_next_q_values # TD target
+    # reshape the target Q-values to be a 2D array with shape (batch_size, num_actions)
+    # target_q_values = target_q_values.reshape(-1, 1)
+    # set the target Q-values for the actions taken to be the target Q-values calculated above
+    current_q_values[np.arange(batch_size), int_actions] = target_q_values
+    return current_q_values
+
+
+  def evaluate_model(self,
+        neural_net: keras.Model,
+        num_episodes: int,
+        max_episode_length: int):
+    """
+    evaluate the performance of the neural network by playing multiple episodes of the game and measuring the success rate.
+
+    Args:
+        neural_net (keras.Model): the neural network to be evaluated
+        num_episodes (int): the number of episodes to play
+        max_episode_length (int): the maximum number of steps in each episode
+
+    Returns:
+        float: the success rate
+    """
+    success_count = 0
+    for i in range(num_episodes):
+      start_state = self.problem.gen_start_state()
+      state = start_state
+      action_sequence = []
+      for j in range(max_episode_length):
+        action = self.choose_action(state, neural_net, exploration_rate=0.2)
+        action_sequence.append(action)
+        reward, new_state = self.problem.take_action(state, action)
+        if self.problem.is_goal(new_state):
+          success_count += 1
+          break
+        state = new_state # update the state
+      else:
+        # if the episode ends without reaching the goal, print the action sequence
+        print(start_state, action_sequence)
+    return success_count / num_episodes
