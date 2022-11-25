@@ -209,7 +209,7 @@ class Q_learning_framework:
     # calculate the target Q-values
     target_q_values = self.__get_target_q_values(neural_net, states, actions, rewards, new_states, goal_reached)
     # update the neural network
-    neural_net.fit(states, target_q_values, epochs=1, verbose=self.verbosity)
+    neural_net.fit(states, target_q_values, epochs=3, verbose=self.verbosity)
 
 
   def __get_target_q_values(self, 
