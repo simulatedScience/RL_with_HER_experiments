@@ -18,7 +18,7 @@ def define_model(
   # define the neural network using keras functional API
   # this should be a map from state to Q-values for each action (S -> A)
   inputs: keras.layers.Input = keras.layers.Input(shape=input_shape)
-  x: keras.layers.Dense = keras.layers.Dense(32, activation="relu")(inputs)
+  x: keras.layers.Dense = keras.layers.Dense(64, activation="relu")(inputs)
   # x: keras.layers.Dense = keras.layers.Dense(np.sum(problem.get_state_size()), activation="relu")(inputs)
   outputs: keras.layers.Dense = keras.layers.Dense(problem.get_num_actions(), activation="softmax")(x)
   neural_net: keras.Model = keras.Model(inputs=inputs, outputs=outputs)
@@ -64,16 +64,16 @@ if __name__ == "__main__":
   problem_size: int = 5
   # parameters for training
   max_episode_length: int = 2*problem_size
-  learning_rate: float = 0.05
+  learning_rate: float = 0.001
   exploration_rate: float = 0.2
-  discount_factor: float = 1
-  batch_size: int = 64
-  replay_buffer_size: int = 256
-  train_max_episodes: int = 2000
-  train_max_time_s: int = 120 # 1 minute
+  discount_factor: float = 0.9
+  batch_size: int = 32
+  replay_buffer_size: int = 128
+  train_max_episodes: int = 3000
+  train_max_time_s: int = 300 # 5 minutes
   # parameters for hindsight experience replay
   trainer = "her" # "her" or "q"
-  n_her_samples: int = 4
+  n_her_samples: int = 2
   fixed_goal: bool = False
   # parameters for NN evaluation
   eval_num_episodes: int = 100 # number of episodes to evaluate over

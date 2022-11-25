@@ -51,18 +51,25 @@ class Bitflip_problem(Q_learning_problem):
 
   def get_reward(self,
         state: np.ndarray,
-        action: int) -> float:
+        action: int,
+        goal: np.ndarray = None) -> Tuple[float, bool]:
     """
     get the reward for taking an action in a given state.
 
     Args:
         state (np.ndarray): the current state
         action (int): the action to take
+        goal (np.ndarray, optional): the goal state. If goal is None, the goal state stored in the `goal` attribute is used. Defaults to None.
 
     Returns:
         float: the reward for taking the action
+        bool: True if the goal state is reached, False otherwise
     """
-    return 1 if np.all(state[action] == self.goal[action]) else 0
+    if goal is None:
+      goal = self.goal
+    reward = 1 if np.all(state[action] == goal[action]) else 0
+    goal_reached = np.all(state == goal)
+    return reward, goal_reached
 
   def get_next_state(self,
         state: np.ndarray,
@@ -106,7 +113,7 @@ class Bitflip_problem(Q_learning_problem):
     """
     return np.arange(self.problem_size)
 
-  def take_action(self, state: np.ndarray, action: int) -> Tuple[float, np.ndarray]:
+  def take_action(self, state: np.ndarray, action: int) -> Tuple[float, np.ndarray, bool]:
     """
     take an action in a given state and return the reward and the next state.
 
@@ -115,11 +122,13 @@ class Bitflip_problem(Q_learning_problem):
         action (int): the action to take
 
     Returns:
-        Tuple(float, np.ndarray): the reward and the next state
+        float: the reward for taking the action
+        np.ndarray: the next state after taking the action
+        bool: True if the goal state is reached, False otherwise
     """
-    reward = self.get_reward(state, action)
+    reward, goal_reached = self.get_reward(state, action, self.goal)
     next_state = self.get_next_state(state, action)
-    return reward, next_state
+    return reward, next_state, goal_reached
 
 if __name__ == "__main__":
   # test the bitflip problem

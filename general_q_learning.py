@@ -47,6 +47,8 @@ class Q_learning_framework:
       replay_buffer_size = max_episode_length
     self.BUFFER_SIZE: int = replay_buffer_size
     self.replay_buffer: Replay_buffer = Replay_buffer(size=self.BUFFER_SIZE)
+    # set input shape of neural network
+    self.nn_input_shape: Tuple[int] = self.problem.get_state_size()
 
 
   def train_model(self,
@@ -107,17 +109,15 @@ class Q_learning_framework:
     for i in range(max_episode_length):
       action = self.choose_action(state, neural_net, self.exploration_rate)
       # take the action and observe the reward and new state
-      reward, new_state = self.problem.take_action(state, action)
+      reward, new_state, goal_reached = self.problem.take_action(state, action)
       # add the transition to the replay buffer
-      self.replay_buffer.add_item(self.__get_buffer_transition(state, action, reward, new_state))
-      if self.problem.is_goal(new_state):
-        goal_reached = True
+      self.replay_buffer.add_item(self.__get_buffer_transition(state, action, reward, new_state, goal_reached))
+      if goal_reached:
         if self.verbosity > 0:
           print(f"Episode {episode_index} finished successfully after {i+1} steps.")
         break
       state = new_state
     else: # episode ended without reaching the goal
-      goal_reached = False
       if self.verbosity > 0:
         print(f"Episode {episode_index} ended without reaching the goal.")
     # update the network
@@ -145,11 +145,13 @@ class Q_learning_framework:
       predictions = neural_net.predict(state.reshape(1, -1), verbose=self.verbosity)
       return np.argmax(predictions)
 
+
   def __get_buffer_transition(self,
         state: np.ndarray,
         action: int,
         reward: float,
-        new_state: np.ndarray):
+        new_state: np.ndarray,
+        goal_reached: bool) -> Tuple[np.ndarray, int, float, np.ndarray, bool]:
     """
     get a transition for the replay buffer. This is a tuple of (state, action, reward, new_state).
 
@@ -158,11 +160,15 @@ class Q_learning_framework:
         action (int): the action taken
         reward (float): the reward received
         new_state (np.ndarray): the new state after taking the action
+        goal_reached (bool): whether the goal was reached
+
+    Returns:
+        tuple: a tuple of (state, action, reward, new_state, goal_reached) for the replay buffer
     """
-    return (state, action, reward, new_state)
+    return (state, action, reward, new_state, goal_reached)
 
 
-  def __get_batch_data(self, batch_samples: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+  def __get_batch_data(self, batch_samples: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     get the states, actions, rewards, and new states from the replay buffer.
 
@@ -172,16 +178,20 @@ class Q_learning_framework:
     Returns:
         tuple: a tuple of (states, actions, rewards, new_states)
     """
-    states = np.zeros((len(batch_samples), *self.problem.get_state_size()))
-    actions = np.zeros((len(batch_samples), 1))
-    rewards = np.zeros((len(batch_samples), 1))
-    new_states = np.zeros((len(batch_samples), *self.problem.get_state_size()))
+    batchsize = len(batch_samples)
+    # state size is the size of the state plus the size of the goal
+    states = np.zeros((batchsize, *self.nn_input_shape))
+    actions = np.zeros((batchsize, 1))
+    rewards = np.zeros((batchsize, 1))
+    new_states = np.zeros((batchsize, *self.nn_input_shape))
+    goal_reached = np.zeros(batchsize)
     for i, sample in enumerate(batch_samples):
       states[i] = sample[0]
       actions[i] = sample[1]
       rewards[i] = sample[2]
       new_states[i] = sample[3]
-    return states, actions, rewards, new_states
+      goal_reached[i] = sample[4]
+    return states, actions, rewards, new_states, goal_reached
 
 
   def update_network(self, neural_net: keras.Model):
@@ -195,9 +205,9 @@ class Q_learning_framework:
     # sample a batch from the replay buffer
     batch = self.replay_buffer.sample_batch(batch_size=self.batch_size)
     # get the states, actions, rewards, and new states from the batch
-    states, actions, rewards, new_states = self.__get_batch_data(batch)
+    states, actions, rewards, new_states, goal_reached = self.__get_batch_data(batch)
     # calculate the target Q-values
-    target_q_values = self.__get_target_q_values(neural_net, states, actions, rewards, new_states)
+    target_q_values = self.__get_target_q_values(neural_net, states, actions, rewards, new_states, goal_reached)
     # update the neural network
     neural_net.fit(states, target_q_values, epochs=1, verbose=self.verbosity)
 
@@ -207,7 +217,8 @@ class Q_learning_framework:
         states: np.ndarray,
         actions: np.ndarray,
         rewards: np.ndarray,
-        new_states: np.ndarray) -> np.ndarray:
+        new_states: np.ndarray,
+        goal_reached: np.ndarray) -> np.ndarray:
     """
     get the target Q-values for the given batch according to the Bellman equation.
 
@@ -222,21 +233,19 @@ class Q_learning_framework:
         np.ndarray: the target Q-values. This is a 2D array with shape (batch_size, num_actions) where all the Q-values are the same except for the Q-value for the action taken in each transition.
     """
     batch_size = states.shape[0]
-    # get the Q-values for the new states
-    next_q_values = neural_net.predict(new_states, verbose=self.verbosity)
+    # get the Q-values for the new states if the goal was not reached, otherwise, set the Q-values to 0
+    next_q_values = np.zeros((batch_size, self.problem.get_num_actions()))
+    if 0 in goal_reached:
+      predict_states = new_states[goal_reached == 0, :]
+      next_q_values[goal_reached == 0, :] = neural_net.predict(predict_states, verbose=self.verbosity)
     # get the Q-values for the states
     current_q_values = neural_net.predict(states, verbose=self.verbosity)
     # get the Q-values for the actions taken
     int_actions = actions.astype(np.int16)
-    # q_values_for_actions = current_q_values[np.arange(batch_size), int_actions.reshape(-1)]
     # get the maximum Q-value for each follow-up state in the same shape as the current Q-values
     max_next_q_values = np.max(next_q_values, axis=1)
     # calculate the target Q-values
-    # target_q_values = q_values_for_actions + self.learning_rate \
-    #     * (rewards + self.discount_factor * max_next_q_values - q_values_for_actions)
     target_q_values = rewards + self.discount_factor * max_next_q_values # TD target
-    # reshape the target Q-values to be a 2D array with shape (batch_size, num_actions)
-    # target_q_values = target_q_values.reshape(-1, 1)
     # set the target Q-values for the actions taken to be the target Q-values calculated above
     current_q_values[np.arange(batch_size), int_actions] = target_q_values
     return current_q_values
@@ -265,8 +274,8 @@ class Q_learning_framework:
       for j in range(max_episode_length):
         action = self.choose_action(state, neural_net, exploration_rate=0.2)
         action_sequence.append(action)
-        reward, new_state = self.problem.take_action(state, action)
-        if self.problem.is_goal(new_state):
+        reward, new_state, goal_reached = self.problem.take_action(state, action)
+        if goal_reached:
           success_count += 1
           break
         state = new_state # update the state
