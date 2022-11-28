@@ -65,14 +65,14 @@ if __name__ == "__main__":
   # problem parameters
   problem_size: int = 5
   # parameters for training
-  max_episode_length: int = int(problem_size)
+  max_episode_length: int = int(1.5*problem_size)
   learning_rate: float = 0.001
   exploration_rate: float = 0.2
-  discount_factor: float = 0.98
-  batch_size: int = 64
-  replay_buffer_size: int = 256 #2048
+  discount_factor: float = 0.9
+  batch_size: int = 32
+  replay_buffer_size: int = 128
   train_max_episodes: int = 10000
-  train_max_time_s: int = 20 # 30 minutes
+  train_max_time_s: int = 60 # 30 minutes
   # parameters for hindsight experience replay
   trainer = "her" # "her" or "q"
   n_her_samples: int = 2
@@ -111,23 +111,23 @@ if __name__ == "__main__":
 
   # train the neural network
   # perform runtime evaluation using cProfile
-  import cProfile
-  import pstats
-  profile = cProfile.Profile()
-  success_rate = profile.runcall(q_learning_framework.train_model,
-    neural_net=neural_net,
-      max_episode_length=max_episode_length,
-      max_episodes=train_max_episodes,
-      max_time_s=train_max_time_s)
-  # print the results of the cProfile
-  stats = pstats.Stats(profile)
-  stats.sort_stats("cumtime")
-  stats.print_stats(30)
-  # success_rate = q_learning_framework.train_model(
-  #     neural_net=neural_net,
+  # import cProfile
+  # import pstats
+  # profile = cProfile.Profile()
+  # success_rate = profile.runcall(q_learning_framework.train_model,
+  #   neural_net=neural_net,
   #     max_episode_length=max_episode_length,
   #     max_episodes=train_max_episodes,
   #     max_time_s=train_max_time_s)
+  # # print the results of the cProfile
+  # stats = pstats.Stats(profile)
+  # stats.sort_stats("cumtime")
+  # stats.print_stats(30)
+  success_rate = q_learning_framework.train_model(
+      neural_net=neural_net,
+      max_episode_length=max_episode_length,
+      max_episodes=train_max_episodes,
+      max_time_s=train_max_time_s)
 
   # # plot the success rate
   # plot_success_rate(

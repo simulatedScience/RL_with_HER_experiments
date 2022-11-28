@@ -22,7 +22,7 @@ class Bitflip_problem(Q_learning_problem):
     Returns:
         tf.Tensor: the start state
     """
-    return tf.random.uniform(shape=(self.problem_size,), minval=0, maxval=1, dtype=tf.int32)
+    return tf.random.uniform(shape=(self.problem_size,), minval=0, maxval=2, dtype=tf.int32)
     # return np.random.randint(0, 2, self.problem_size, dtype=np.int8)
 
   def gen_goal_state(self) -> tf.Tensor:
@@ -34,7 +34,7 @@ class Bitflip_problem(Q_learning_problem):
         tf.Tensor: the goal state
     """
     
-    self.goal = tf.random.uniform(shape=(self.problem_size,), minval=0, maxval=1, dtype=tf.int32)
+    self.goal = tf.random.uniform(shape=(self.problem_size,), minval=0, maxval=2, dtype=tf.int32)
     # self.goal = np.random.randint(0, 2, self.problem_size, dtype=np.int8)
     return self.goal
 
