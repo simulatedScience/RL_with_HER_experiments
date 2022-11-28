@@ -61,7 +61,7 @@ def define_q_trainer(
 
 if __name__ == "__main__":
   # problem parameters
-  problem_size: int = 8
+  problem_size: int = 5
   # parameters for training
   max_episode_length: int = int(1.5*problem_size)
   learning_rate: float = 0.001
@@ -70,7 +70,7 @@ if __name__ == "__main__":
   batch_size: int = 32
   replay_buffer_size: int = 128
   train_max_episodes: int = 10000
-  train_max_time_s: int = 300 # 30 minutes
+  train_max_time_s: int = 60 # 30 minutes
   # parameters for hindsight experience replay
   trainer = "her" # "her" or "q"
   n_her_samples: int = 2
