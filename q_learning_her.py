@@ -6,6 +6,7 @@ See https://arxiv.org/abs/1707.01495 for more information on hindsight experienc
 from typing import List, Tuple
 
 import numpy as np
+import tensorflow as tf
 import tensorflow.keras as keras
 
 from general_q_learning import Q_learning_framework
@@ -77,13 +78,13 @@ class Q_learning_framework_her(Q_learning_framework):
         bool: True if the goal was reached, False otherwise
     """
     if not self.fixed_goal: # generate a random goal
-      goal: np.ndarray = self.problem.gen_goal_state()
+      goal: tf.Tensor = self.problem.gen_goal_state()
     else: # use the fixed goal
-      goal: np.ndarray = self.problem.goal
+      goal: tf.Tensor = self.problem.goal
     # generate a random start state
-    state: np.ndarray = self.problem.gen_start_state()
+    state: tf.Tensor = self.problem.gen_start_state()
 
-    state_action_history: List[np.ndarray] = [] # list of visited states, actions and rewards
+    state_action_history: list = [] # list of visited states, actions and rewards
     # play episode
     for i in range(max_episode_length):
       extended_state = self.__get_nn_input(state, goal)
@@ -121,85 +122,39 @@ class Q_learning_framework_her(Q_learning_framework):
     super().update_network(neural_net)
 
 
-  # def __get_batch_data(self, batch_samples: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-  #   """
-  #   get the states, actions, rewards, and new states from the replay buffer.
-
-  #   Args:
-  #       batch_size (int): the number of transitions to sample from the replay buffer
-
-  #   Returns:
-  #       tuple: a tuple of (states, actions, rewards, new_states)
-  #   """
-  #   batchsize = len(batch_samples)
-  #   # state size is the size of the state plus the size of the goal
-  #   states = np.zeros((batchsize, *self.nn_input_shape))
-  #   actions = np.zeros((batchsize, 1))
-  #   rewards = np.zeros((batchsize, 1))
-  #   new_states = np.zeros((batchsize, *self.nn_input_shape))
-  #   for i, sample in enumerate(batch_samples):
-  #     states[i] = sample[0]
-  #     actions[i] = sample[1]
-  #     rewards[i] = sample[2]
-  #     new_states[i] = sample[3]
-  #   return states, actions, rewards, new_states
-
-
-  # def __get_target_q_values(self, 
-  #       neural_net: keras.Model,
-  #       states: np.ndarray,
-  #       actions: np.ndarray,
-  #       rewards: np.ndarray,
-  #       new_states: np.ndarray) -> np.ndarray:
-  #   """
-  #   get the target Q-values for the given batch according to the Bellman equation.
-
-  #   Args:
-  #       neural_net (keras.Model): neural network
-  #       states (np.ndarray): states in the batch
-  #       actions (np.ndarray): actions in the batch
-  #       rewards (np.ndarray): rewards for each action
-  #       new_states (np.ndarray): new states after taking the actions
-
-  #   Returns:
-  #       np.ndarray: the target Q-values. This is a 2D array with shape (batch_size, num_actions) where all the Q-values are the same except for the Q-value for the action taken in each transition.
-  #   """
-  #   return super().get_target_q_values(neural_net, states, actions, rewards, new_states)
-
-
   def __get_buffer_transition(self,
-        state: np.ndarray,
+        state: tf.Tensor,
         action: int,
         reward: float,
-        new_state: np.ndarray,
-        goal: np.ndarray,
-        goal_reached: bool) -> Tuple[np.ndarray, int, float, np.ndarray, np.ndarray, np.ndarray]:
+        new_state: tf.Tensor,
+        goal: tf.Tensor,
+        goal_reached: bool) -> Tuple[tf.Tensor, int, float, tf.Tensor, tf.Tensor, bool]:
     """
     get a transition for the replay buffer
 
     Args:
-        state (np.ndarray): the state
+        state (tf.Tensor): the state
         action (int): the action
         reward (float): the reward
-        new_state (np.ndarray): the new state
-        goal (np.ndarray): the goal
+        new_state (tf.Tensor): the new state
+        goal (tf.Tensor): the goal
         goal_reached (bool): True if the goal was reached, False otherwise
 
     Returns:
-        Tuple[np.ndarray, int, float, np.ndarray, np.ndarray]: the transition
+        Tuple[tf.Tensor, int, float, tf.Tensor, tf.Tensor, bool]: the transition for the replay buffer (state, action, reward, new_state, goal, goal_reached)
     """
     return self.__get_nn_input(state, goal), action, reward, self.__get_nn_input(new_state, goal), goal_reached
 
 
   def __add_her_samples(self,
-        goal: np.ndarray,
-        state_action_history: List[Tuple[np.ndarray, int]]):
+        goal: tf.Tensor,
+        state_action_history: list):
     """
     add hindsight experience replay samples to the replay buffer.
 
     Args:
-        goal (np.ndarray): the goal state
-        state_action_history (List[Tuple[np.ndarray, int]]): list of visited states and actions
+        goal (tf.Tensor): the goal state
+        state_action_history (list): list of visited states and actions
     """
     for _ in range(self.n_her_samples):
       # choose a random state from the episode
@@ -217,17 +172,18 @@ class Q_learning_framework_her(Q_learning_framework):
           self.__get_buffer_transition(state, action, reward, new_state, new_goal, goal_reached))
 
 
-  def __get_nn_input(self, state: np.ndarray, goal: np.ndarray) -> np.ndarray:
+  def __get_nn_input(self, state: tf.Tensor, goal: tf.Tensor) -> tf.Tensor:
     """
     get the input for the neural network for HER by concatenating the state and the goal.
 
     Args:
-        state (np.ndarray): the current state
-        goal (np.ndarray): the goal state
+        state (tf.Tensor): the current state
+        goal (tf.Tensor): the goal state
 
     Returns:
         np.ndarray: the input for the neural network
     """
+    # return tf.concat(state, goal)
     return np.concatenate((state, goal))
 
   def evaluate_model(self,
@@ -259,11 +215,11 @@ class Q_learning_framework_her(Q_learning_framework):
         action = self.choose_action(extended_state, neural_net, exploration_rate=0.2)
         action_sequence.append(action)
         reward, new_state, goal_reached = self.problem.take_action(state, action)
-        if self.problem.is_goal(new_state):
+        if goal_reached:
           success_count += 1
           break
         state = new_state # update the state
       else:
         # if the episode ends without reaching the goal, print the action sequence
-        print(start_state, action_sequence)
+        print(f"eval her, loss: {start_state.numpy()} -> {action_sequence} -> {new_state.numpy()}")
     return success_count / num_episodes

@@ -5,6 +5,7 @@ import time
 from typing import Tuple, List
 
 import numpy as np
+import tensorflow as tf
 import tensorflow.keras as keras
 
 from replay_buffer import Replay_buffer
@@ -126,40 +127,44 @@ class Q_learning_framework:
 
 
   def choose_action(self,
-        state: np.ndarray,
+        state: tf.Tensor,
         neural_net: keras.Model,
         exploration_rate: float) -> int:
     """
     choose an action using the epsilon-greedy policy. With probability `self.exploration_rate`, choose a random action. Otherwise, choose the action with the highest Q-value.
 
     Args:
-        state (np.ndarray): the current state of the environment
+        state (tf.Tensor): the current state of the environment
         neural_net (keras.Model): tpredhe neural network used to estimate the Q-values
 
     Returns:
         int: the chosen action
     """
     if np.random.random() < exploration_rate:
+      # return tf.random.uniform(shape=(1,), minval=0, maxval=self.problem.get_num_actions(), dtype=tf.int32)
       return np.random.randint(0, self.problem.get_num_actions())
     else:
+      # pred_shape = (1,) + self.nn_input_shape
+      # predictions = neural_net.predict(tf.reshape(state, pred_shape), verbose=self.verbosity)
+      # predictions = neural_net.predict(state, verbose=self.verbosity)
       predictions = neural_net.predict(state.reshape(1, -1), verbose=self.verbosity)
       return np.argmax(predictions)
 
 
   def __get_buffer_transition(self,
-        state: np.ndarray,
+        state: tf.Tensor,
         action: int,
         reward: float,
-        new_state: np.ndarray,
-        goal_reached: bool) -> Tuple[np.ndarray, int, float, np.ndarray, bool]:
+        new_state: tf.Tensor,
+        goal_reached: bool) -> Tuple[tf.Tensor, int, float, tf.Tensor, bool]:
     """
     get a transition for the replay buffer. This is a tuple of (state, action, reward, new_state).
 
     Args:
-        state (np.ndarray): the current state
+        state (tf.Tensor): the current state
         action (int): the action taken
         reward (float): the reward received
-        new_state (np.ndarray): the new state after taking the action
+        new_state (tf.Tensor): the new state after taking the action
         goal_reached (bool): whether the goal was reached
 
     Returns:
@@ -202,6 +207,9 @@ class Q_learning_framework:
     Args:
         neural_net (keras.Model): the neural network to be updated
     """
+    if not self.replay_buffer._buffer_filled:
+      # only start training once the replay buffer is full
+      return
     # sample a batch from the replay buffer
     batch = self.replay_buffer.sample_batch(batch_size=self.batch_size)
     # get the states, actions, rewards, and new states from the batch
@@ -209,7 +217,7 @@ class Q_learning_framework:
     # calculate the target Q-values
     target_q_values = self.__get_target_q_values(neural_net, states, actions, rewards, new_states, goal_reached)
     # update the neural network
-    neural_net.fit(states, target_q_values, epochs=3, verbose=self.verbosity)
+    neural_net.fit(states, target_q_values, epochs=40, verbose=self.verbosity)
 
 
   def __get_target_q_values(self, 
@@ -281,5 +289,5 @@ class Q_learning_framework:
         state = new_state # update the state
       else:
         # if the episode ends without reaching the goal, print the action sequence
-        print(start_state, action_sequence)
+        print(f"eval her, loss: {start_state.numpy()} -> {action_sequence} -> {new_state.numpy()}")
     return success_count / num_episodes

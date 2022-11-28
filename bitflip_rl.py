@@ -17,10 +17,12 @@ def define_model(
       problem: Q_learning_problem) -> keras.Model:
   # define the neural network using keras functional API
   # this should be a map from state to Q-values for each action (S -> A)
+  if len(input_shape) == 1:
+    input_shape = input_shape[0]
   inputs: keras.layers.Input = keras.layers.Input(shape=input_shape)
-  x: keras.layers.Dense = keras.layers.Dense(32, activation="relu")(inputs)
+  x: keras.layers.Dense = keras.layers.Dense(256, activation="relu")(inputs)
   # x: keras.layers.Dense = keras.layers.Dense(np.sum(problem.get_state_size()), activation="relu")(inputs)
-  outputs: keras.layers.Dense = keras.layers.Dense(problem.get_num_actions(), activation="softmax")(x)
+  outputs: keras.layers.Dense = keras.layers.Dense(problem.get_num_actions(), activation="linear")(x)
   neural_net: keras.Model = keras.Model(inputs=inputs, outputs=outputs)
   neural_net.compile(optimizer="adam", loss="mse")
   return neural_net
@@ -61,16 +63,16 @@ def define_q_trainer(
 
 if __name__ == "__main__":
   # problem parameters
-  problem_size: int = 8
+  problem_size: int = 5
   # parameters for training
-  max_episode_length: int = int(1.5*problem_size)
+  max_episode_length: int = int(problem_size)
   learning_rate: float = 0.001
   exploration_rate: float = 0.2
-  discount_factor: float = 0.9
-  batch_size: int = 32
-  replay_buffer_size: int = 128
+  discount_factor: float = 0.98
+  batch_size: int = 64
+  replay_buffer_size: int = 256 #2048
   train_max_episodes: int = 10000
-  train_max_time_s: int = 300 # 30 minutes
+  train_max_time_s: int = 20 # 30 minutes
   # parameters for hindsight experience replay
   trainer = "her" # "her" or "q"
   n_her_samples: int = 2
@@ -108,20 +110,33 @@ if __name__ == "__main__":
       verbosity=verbosity)
 
   # train the neural network
-  success_rate = q_learning_framework.train_model(
-      neural_net=neural_net,
+  # perform runtime evaluation using cProfile
+  import cProfile
+  import pstats
+  profile = cProfile.Profile()
+  success_rate = profile.runcall(q_learning_framework.train_model,
+    neural_net=neural_net,
       max_episode_length=max_episode_length,
       max_episodes=train_max_episodes,
       max_time_s=train_max_time_s)
+  # print the results of the cProfile
+  stats = pstats.Stats(profile)
+  stats.sort_stats("cumtime")
+  stats.print_stats(30)
+  # success_rate = q_learning_framework.train_model(
+  #     neural_net=neural_net,
+  #     max_episode_length=max_episode_length,
+  #     max_episodes=train_max_episodes,
+  #     max_time_s=train_max_time_s)
 
-  # plot the success rate
-  plot_success_rate(
-      success_rate=success_rate,
-      moving_average_window=64,
-      show=True)
+  # # plot the success rate
+  # plot_success_rate(
+  #     success_rate=success_rate,
+  #     moving_average_window=64,
+  #     show=True)
 
-  # evaluate the neural network
-  success_rate = q_learning_framework.evaluate_model(neural_net=neural_net,
-      num_episodes=eval_num_episodes,
-      max_episode_length=eval_episode_length)
-  print(f"Success rate: {success_rate}")
+  # # evaluate the neural network
+  # success_rate = q_learning_framework.evaluate_model(neural_net=neural_net,
+  #     num_episodes=eval_num_episodes,
+  #     max_episode_length=eval_episode_length)
+  # print(f"Success rate: {success_rate}")
