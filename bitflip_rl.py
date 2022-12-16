@@ -63,14 +63,14 @@ if __name__ == "__main__":
   # problem parameters
   problem_size: int = 5
   # parameters for training
-  max_episode_length: int = int(1.5*problem_size)
+  max_episode_length: int = int(problem_size)
   learning_rate: float = 0.001
   exploration_rate: float = 0.2
   discount_factor: float = 0.9
-  batch_size: int = 32
-  replay_buffer_size: int = 128
-  train_max_episodes: int = 10000
-  train_max_time_s: int = 60 # 30 minutes
+  batch_size: int = 64
+  replay_buffer_size: int = 2048
+  train_max_episodes: int = 4000
+  train_max_time_s: int = 1800 # 30 minutes
   # parameters for hindsight experience replay
   trainer = "her" # "her" or "q"
   n_her_samples: int = 2
@@ -114,14 +114,14 @@ if __name__ == "__main__":
       max_episodes=train_max_episodes,
       max_time_s=train_max_time_s)
 
-  # plot the success rate
-  plot_success_rate(
-      success_rate=success_rate,
-      moving_average_window=64,
-      show=True)
+  # # plot the success rate
+  # plot_success_rate(
+  #     success_rate=success_rate,
+  #     moving_average_window=64,
+  #     show=True)
 
-  # evaluate the neural network
-  success_rate = q_learning_framework.evaluate_model(neural_net=neural_net,
-      num_episodes=eval_num_episodes,
-      max_episode_length=eval_episode_length)
-  print(f"Success rate: {success_rate}")
+  # # evaluate the neural network
+  # success_rate = q_learning_framework.evaluate_model(neural_net=neural_net,
+  #     num_episodes=eval_num_episodes,
+  #     max_episode_length=eval_episode_length)
+  # print(f"Success rate: {success_rate}")

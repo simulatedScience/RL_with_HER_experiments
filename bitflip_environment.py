@@ -98,7 +98,12 @@ class Bitflip_problem(Q_learning_problem):
 
     Returns:
         bool: True if the state is the goal state, False otherwise
+
+    Raises:
+        ValueError: if the shape of the state does not match the shape of the goal state
     """
+    if state.shape != self.goal.shape:
+      raise ValueError(f"state shape {state.shape} does not match goal shape {self.goal.shape}")
     return np.all(state == self.goal)
 
   def get_actions(self, state: np.ndarray) -> np.ndarray:
@@ -132,7 +137,7 @@ class Bitflip_problem(Q_learning_problem):
 
 if __name__ == "__main__":
   # test the bitflip problem
-  problem = Bitflip_problem(6)
+  problem = Bitflip_problem(4)
   print(problem.gen_start_state())
   print(problem.gen_goal_state())
   print(problem.get_reward(np.array([0, 1, 0, 1]), 1))
